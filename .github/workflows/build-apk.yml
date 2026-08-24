@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: APK Oluştur
+    name: Android APK Oluştur
     runs-on: ubuntu-latest
 
     steps:
@@ -29,45 +29,91 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Android SDK kur
+      - name: Android SDK hazırla
         uses: android-actions/setup-android@v3
 
-      - name: Android araçlarını hazırla
+      - name: Android SDK bileşenlerini kur
         run: |
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
 
-      - name: NPM projesini hazırla
+      - name: Web klasörünü hazırla
         run: |
-          npm init -y
-          npm install @capacitor/core@7.4.3
-          npm install --save-dev @capacitor/cli@7.4.3 @capacitor/android@7.4.3
+          mkdir -p www
+          cp index.html www/index.html
 
-      - name: Capacitor'u başlat
+      - name: package.json oluştur
         run: |
-          npx cap init "Gökçe Farming 3D" "com.gokce.farming3d" --web-dir .
+          cat > package.json <<'EOF'
+          {
+            "name": "gokce-farming-3d",
+            "version": "1.0.0",
+            "private": true,
+            "scripts": {
+              "build": "echo Web uygulaması hazır"
+            },
+            "dependencies": {
+              "@capacitor/core": "7.4.3"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "7.4.3",
+              "@capacitor/android": "7.4.3"
+            }
+          }
+          EOF
+
+      - name: NPM bağımlılıklarını kur
+        run: npm install
+
+      - name: Capacitor yapılandırmasını oluştur
+        run: |
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
+            appId: 'com.gokce.farming3d',
+            appName: 'Gökçe Farming 3D',
+            webDir: 'www',
+            bundledWebRuntime: false
+          };
+
+          export default config;
+          EOF
 
       - name: Android projesini oluştur
-        run: |
-          npx cap add android
-          npx cap sync android
+        run: npx cap add android
+
+      - name: Web dosyalarını Android'e aktar
+        run: npx cap copy android
+
+      - name: Capacitor'u senkronize et
+        run: npx cap sync android
 
       - name: Uygulamayı yatay yap
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text()
-
-          s = s.replace(
-              '<activity',
-              '<activity android:screenOrientation="landscape"',
-              1
+          manifest = Path(
+              "android/app/src/main/AndroidManifest.xml"
           )
 
-          p.write_text(s)
+          text = manifest.read_text()
+
+          text = text.replace(
+              'android:screenOrientation="portrait"',
+              'android:screenOrientation="landscape"'
+          )
+
+          if 'android:screenOrientation=' not in text:
+              text = text.replace(
+                  '<activity',
+                  '<activity android:screenOrientation="landscape"',
+                  1
+              )
+
+          manifest.write_text(text)
           PY
 
       - name: APK oluştur
