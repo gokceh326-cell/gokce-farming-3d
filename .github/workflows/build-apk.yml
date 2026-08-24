@@ -1,4 +1,4 @@
-name: APK oluştur
+name: Android APK
 
 on:
   workflow_dispatch:
@@ -8,65 +8,69 @@ on:
 
 jobs:
   build:
-    name: APK oluştur
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-
       - name: Projeyi GitHub'dan al
         uses: actions/checkout@v4
 
-      - name: Node.js 20 kur
+      - name: Node.js 22 kur
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: npm
 
       - name: Java 21 kur
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
 
       - name: Java sürümünü kontrol et
         run: |
           java -version
           javac -version
-          echo "JAVA_HOME=$JAVA_HOME"
-
-      - name: Android SDK hazırla
-        uses: android-actions/setup-android@v3
-
-      - name: Android SDK bileşenlerini kur
-        run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-35"
-          sdkmanager "build-tools;35.0.0"
+          node --version
+          npm --version
 
       - name: Web klasörünü hazırla
         run: |
           rm -rf www
           mkdir -p www
 
-          if [ ! -f index.html ]; then
-            echo "HATA: index.html bulunamadı!"
+          if [ -f index.html ]; then
+            cp index.html www/index.html
+          elif [ -f ./web/index.html ]; then
+            cp ./web/index.html www/index.html
+          else
+            echo "index.html bulunamadı!"
             exit 1
           fi
 
-          cp index.html www/index.html
-
-      - name: NPM projesini hazırla
+      - name: package.json oluştur
         run: |
-          if [ ! -f package.json ]; then
-            npm init -y
-          fi
+          cat > package.json <<'EOF'
+          {
+            "name": "gokce-farming-3d",
+            "version": "1.0.0",
+            "private": true,
+            "scripts": {
+              "build": "echo Web build hazir"
+            },
+            "dependencies": {
+              "@capacitor/core": "^8.0.0",
+              "@capacitor/android": "^8.0.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^8.0.0",
+              "typescript": "^5.9.0"
+            }
+          }
+          EOF
 
-      - name: Capacitor ve TypeScript kur
-        run: |
-          npm install @capacitor/core@latest
-          npm install @capacitor/cli@latest
-          npm install @capacitor/android@latest
-          npm install --save-dev typescript
+      - name: NPM bağımlılıklarını kur
+        run: npm install
 
       - name: Capacitor yapılandırmasını oluştur
         run: |
@@ -74,77 +78,45 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.gokce.farming3d',
-            appName: 'Gökçe Farming 3D',
-            webDir: 'www'
+            appId: 'com.gokcehucres.farming3d',
+            appName: 'Gokce Farming 3D',
+            webDir: 'www',
+            bundledWebRuntime: false
           };
 
           export default config;
           EOF
 
-      - name: Android projesini oluştur
+      - name: Capacitor Android projesini oluştur
         run: |
-          if [ -d android ]; then
-            rm -rf android
+          if [ ! -d android ]; then
+            npx cap add android
+          else
+            echo "Android klasörü zaten mevcut."
           fi
 
-          npx cap add android
-
       - name: Web dosyalarını Android'e aktar
-        run: |
-          npx cap copy android
+        run: npx cap copy android
 
       - name: Capacitor'u senkronize et
-        run: |
-          npx cap sync android
+        run: npx cap sync android
 
       - name: Gradle Java 21 ayarla
         run: |
           echo "org.gradle.java.home=$JAVA_HOME" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> android/gradle.properties
 
-      - name: Uygulamayı yatay yap
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-
-          text = manifest.read_text()
-
-          if "android:screenOrientation=" in text:
-              import re
-              text = re.sub(
-                  r'android:screenOrientation="[^"]*"',
-                  'android:screenOrientation="landscape"',
-                  text,
-                  count=1
-              )
-          else:
-              text = text.replace(
-                  "<activity",
-                  '<activity android:screenOrientation="landscape"',
-                  1
-              )
-
-          manifest.write_text(text)
-          PY
-
-      - name: Gradle Java sürümünü kontrol et
+      - name: Android projesini kontrol et
         working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew --version
+        run: ./gradlew --version
 
       - name: APK oluştur
         working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: APK dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: Gokce-Farming-3D
+          name: Gokce-Farming-3D-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
