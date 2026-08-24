@@ -1,4 +1,4 @@
-name: Android APK
+name: Gökçe Farming 3D APK
 
 on:
   workflow_dispatch:
@@ -7,114 +7,245 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
-    name: APK oluştur
-    runs-on: ubuntu-latest
+    name: Android APK oluştur
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Projeyi al
+
+      # --------------------------------------------------
+      # 1 - KODU AL
+      # --------------------------------------------------
+      - name: Projeyi GitHub'dan al
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # 2 - NODE 20
+      # --------------------------------------------------
       - name: Node.js 20 kur
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
-      - name: Java 21 kur
+      # --------------------------------------------------
+      # 3 - JAVA 17
+      # ÖNEMLİ:
+      # Capacitor 7 + Android Gradle tarafında
+      # Java 17 kullanıyoruz.
+      # --------------------------------------------------
+      - name: Java 17 kur
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
+      # --------------------------------------------------
+      # 4 - ANDROID SDK
+      # --------------------------------------------------
       - name: Android SDK hazırla
         uses: android-actions/setup-android@v3
 
-      - name: Android SDK bileşenlerini kur
+      - name: Android SDK paketlerini kur
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-35"
-          sdkmanager "build-tools;35.0.0"
+          yes | sdkmanager --licenses >/dev/null || true
 
-      - name: package.json oluştur
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      # --------------------------------------------------
+      # 5 - SADECE HTML GEREKLİ
+      # --------------------------------------------------
+      - name: index.html kontrol et
         run: |
-          if [ ! -f package.json ]; then
-            npm init -y
+          if [ ! -f "index.html" ]; then
+            echo "HATA: Ana klasörde index.html bulunamadı!"
+            echo ""
+            echo "Beklenen yapı:"
+            echo "index.html"
+            echo ".github/workflows/build-apk.yml"
+            exit 1
           fi
 
-      - name: Capacitor kur
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          echo "index.html bulundu."
 
-      - name: Web klasörünü hazırla
+      # --------------------------------------------------
+      # 6 - TEMİZ NODE PROJESİ
+      # --------------------------------------------------
+      - name: Temiz package.json oluştur
+        run: |
+          rm -f package-lock.json
+          rm -f capacitor.config.ts
+          rm -f capacitor.config.js
+
+          cat > package.json <<'EOF'
+          {
+            "name": "gokce-farming-3d",
+            "version": "1.0.0",
+            "private": true,
+            "description": "Gökçe Farming 3D",
+            "scripts": {
+              "build": "echo Web oyunu hazır"
+            },
+            "dependencies": {
+              "@capacitor/core": "7.4.3",
+              "@capacitor/android": "7.4.3"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "7.4.3"
+            }
+          }
+          EOF
+
+      # --------------------------------------------------
+      # 7 - CAPACITOR 7.4.3
+      # VERSİYONU SABİTLİYORUZ.
+      # Böylece gelecekte yeni sürüm çıkınca
+      # build sisteminin değişmesini engelliyoruz.
+      # --------------------------------------------------
+      - name: Capacitor 7.4.3 kur
+        run: |
+          npm install
+
+      # --------------------------------------------------
+      # 8 - WWW KLASÖRÜ
+      # --------------------------------------------------
+      - name: Web klasörünü oluştur
         run: |
           rm -rf www
           mkdir -p www
 
-          if [ -f index.html ]; then
-            cp index.html www/index.html
-          else
-            echo "HATA: index.html bulunamadı!"
-            exit 1
-          fi
+          cp index.html www/index.html
 
-      - name: Capacitor yapılandırmasını oluştur
+          echo "Web dosyası:"
+          ls -lh www/index.html
+
+      # --------------------------------------------------
+      # 9 - CAPACITOR CONFIG
+      # JSON KULLANIYORUZ.
+      # TYPESCRIPT YOK.
+      # --------------------------------------------------
+      - name: Capacitor yapılandırması
         run: |
           cat > capacitor.config.json <<'EOF'
           {
             "appId": "com.gokce.farming3d",
             "appName": "Gökçe Farming 3D",
             "webDir": "www",
-            "bundledWebRuntime": false
+            "server": {
+              "androidScheme": "https"
+            }
           }
           EOF
 
-      - name: Android projesini oluştur
+          cat capacitor.config.json
+
+      # --------------------------------------------------
+      # 10 - ESKİ ANDROID PROJESİNİ SİL
+      # --------------------------------------------------
+      - name: Temiz Android projesi
         run: |
           rm -rf android
+
+      # --------------------------------------------------
+      # 11 - ANDROID PROJESİ OLUŞTUR
+      # --------------------------------------------------
+      - name: Capacitor Android projesi oluştur
+        run: |
           npx cap add android
 
+      # --------------------------------------------------
+      # 12 - WEB DOSYALARINI KOPYALA
+      # --------------------------------------------------
       - name: Web dosyalarını Android'e aktar
         run: |
           npx cap copy android
 
+      # --------------------------------------------------
+      # 13 - CAPACITOR SENKRONİZASYONU
+      # --------------------------------------------------
       - name: Capacitor'u senkronize et
         run: |
           npx cap sync android
 
-      - name: Uygulamayı yatay yap
+      # --------------------------------------------------
+      # 14 - TELEFONU YATAY YAP
+      # --------------------------------------------------
+      - name: Oyunu yatay moda kilitle
         run: |
-          python3 - <<'PY'
+          python3 <<'PY'
           from pathlib import Path
+          import re
 
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          text = p.read_text()
-
-          text = text.replace(
-              '<activity android:name=".MainActivity"',
-              '<activity android:name=".MainActivity" android:screenOrientation="landscape"'
+          manifest = Path(
+              "android/app/src/main/AndroidManifest.xml"
           )
 
-          p.write_text(text)
+          text = manifest.read_text()
+
+          # MainActivity etiketini bul
+          pattern = r'(<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*)(>)'
+
+          match = re.search(pattern, text)
+
+          if not match:
+              print("MainActivity bulunamadı.")
+              print(text)
+              raise SystemExit(1)
+
+          activity = match.group(1)
+
+          # Eski screenOrientation varsa kaldır
+          activity = re.sub(
+              r'\s+android:screenOrientation="[^"]*"',
+              '',
+              activity
+          )
+
+          # Yatay
+          activity += ' android:screenOrientation="landscape"'
+
+          text = text[:match.start(1)] + activity + text[match.end(1):]
+
+          manifest.write_text(text)
+
+          print("Yatay ekran ayarlandı.")
           PY
 
+          cat android/app/src/main/AndroidManifest.xml
+
+      # --------------------------------------------------
+      # 15 - JAVA KONTROLÜ
+      # --------------------------------------------------
       - name: Java sürümünü kontrol et
         run: |
           java -version
           javac -version
 
+      # --------------------------------------------------
+      # 16 - ANDROID GRADLE BUILD
+      # --------------------------------------------------
       - name: APK oluştur
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
 
+          ./gradlew \
+            clean \
+            assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+      # --------------------------------------------------
+      # 17 - APK'YI YÜKLE
+      # --------------------------------------------------
       - name: APK dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: gokce-farming-3d-apk
+          name: gokce-farming-3d
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: errorr
+          if-no-files-found: error
