@@ -1,4 +1,4 @@
-name: Gökçe Farming 3D APK
+name: Android APK
 
 on:
   workflow_dispatch:
@@ -7,15 +7,15 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    name: Android APK Oluştur
+    name: APK oluştur
     runs-on: ubuntu-latest
 
     steps:
-      - name: Projeyi indir
+      - name: Projeyi al
         uses: actions/checkout@v4
 
       - name: Node.js 20 kur
@@ -34,93 +34,83 @@ jobs:
 
       - name: Android SDK bileşenlerini kur
         run: |
+          yes | sdkmanager --licenses || true
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
 
-      - name: Web klasörünü hazırla
-        run: |
-          mkdir -p www
-          cp index.html www/index.html
-
       - name: package.json oluştur
         run: |
-          cat > package.json <<'EOF'
-          {
-            "name": "gokce-farming-3d",
-            "version": "1.0.0",
-            "private": true,
-            "scripts": {
-              "build": "echo Web uygulaması hazır"
-            },
-            "dependencies": {
-              "@capacitor/core": "7.4.3"
-            },
-            "devDependencies": {
-              "@capacitor/cli": "7.4.3",
-              "@capacitor/android": "7.4.3"
-            }
-          }
-          EOF
+          if [ ! -f package.json ]; then
+            npm init -y
+          fi
 
-      - name: NPM bağımlılıklarını kur
-        run: npm install
+      - name: Capacitor kur
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Web klasörünü hazırla
+        run: |
+          rm -rf www
+          mkdir -p www
+
+          if [ -f index.html ]; then
+            cp index.html www/index.html
+          else
+            echo "HATA: index.html bulunamadı!"
+            exit 1
+          fi
 
       - name: Capacitor yapılandırmasını oluştur
         run: |
-          cat > capacitor.config.ts <<'EOF'
-          import type { CapacitorConfig } from '@capacitor/cli';
-
-          const config: CapacitorConfig = {
-            appId: 'com.gokce.farming3d',
-            appName: 'Gökçe Farming 3D',
-            webDir: 'www',
-            bundledWebRuntime: false
-          };
-
-          export default config;
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.gokce.farming3d",
+            "appName": "Gökçe Farming 3D",
+            "webDir": "www",
+            "bundledWebRuntime": false
+          }
           EOF
 
       - name: Android projesini oluştur
-        run: npx cap add android
+        run: |
+          rm -rf android
+          npx cap add android
 
       - name: Web dosyalarını Android'e aktar
-        run: npx cap copy android
+        run: |
+          npx cap copy android
 
       - name: Capacitor'u senkronize et
-        run: npx cap sync android
+        run: |
+          npx cap sync android
 
       - name: Uygulamayı yatay yap
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          manifest = Path(
-              "android/app/src/main/AndroidManifest.xml"
-          )
-
-          text = manifest.read_text()
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          text = p.read_text()
 
           text = text.replace(
-              'android:screenOrientation="portrait"',
-              'android:screenOrientation="landscape"'
+              '<activity android:name=".MainActivity"',
+              '<activity android:name=".MainActivity" android:screenOrientation="landscape"'
           )
 
-          if 'android:screenOrientation=' not in text:
-              text = text.replace(
-                  '<activity',
-                  '<activity android:screenOrientation="landscape"',
-                  1
-              )
-
-          manifest.write_text(text)
+          p.write_text(text)
           PY
+
+      - name: Java sürümünü kontrol et
+        run: |
+          java -version
+          javac -version
 
       - name: APK oluştur
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --stacktrace
 
       - name: APK dosyasını yükle
         uses: actions/upload-artifact@v4
