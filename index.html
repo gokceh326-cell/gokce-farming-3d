@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101820">
+<title>Gökçe Çiftlik 3D</title>
+
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#101820;
+    font-family:Arial,Helvetica,sans-serif;
+    color:white;
+    touch-action:none;
+}
+#game{
+    position:fixed;
+    inset:0;
+}
+canvas{
+    display:block;
+}
+
+#hud{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+}
+
+.topbar{
+    position:absolute;
+    top:12px;
+    left:12px;
+    right:12px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+}
+
+.panel{
+    background:rgba(9,16,22,.82);
+    border:1px solid rgba(255,255,255,.14);
+    backdrop-filter:blur(14px);
+    border-radius:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+
+.stats{
+    padding:12px 15px;
+    min-width:245px;
+}
+
+.brand{
+    font-weight:900;
+    letter-spacing:.5px;
+    font-size:18px;
+    margin-bottom:7px;
+}
+
+.statrow{
+    display:flex;
+    gap:15px;
+    color:#dbe8ee;
+    font-size:13px;
+}
+
+.money{
+    color:#8bea8b;
+    font-weight:bold;
+}
+
+.speed{
+    position:absolute;
+    bottom:25px;
+    left:50%;
+    transform:translateX(-50%);
+    width:150px;
+    height:150px;
+    border-radius:50%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:rgba(7,13,18,.82);
+    border:3px solid rgba(255,255,255,.13);
+    box-shadow:0 15px 45px rgba(0,0,0,.4);
+}
+
+.speed b{
+    font-size:42px;
+    line-height:40px;
+}
+
+.speed span{
+    color:#aab9c2;
+    font-size:12px;
+}
+
+.gear{
+    margin-top:7px;
+    color:#8bea8b;
+    font-weight:bold;
+}
+
+#info{
+    position:absolute;
+    left:15px;
+    bottom:20px;
+    width:260px;
+    padding:13px;
+    font-size:12px;
+    line-height:1.6;
+}
+
+#message{
+    position:absolute;
+    top:100px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(8,15,20,.9);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:12px;
+    padding:10px 18px;
+    opacity:0;
+    transition:.25s;
+}
+
+#controls{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+}
+
+.control{
+    pointer-events:auto;
+    position:absolute;
+    width:64px;
+    height:64px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,.2);
+    background:rgba(10,18,24,.72);
+    color:white;
+    font-size:25px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+    backdrop-filter:blur(10px);
+}
+
+.control:active{
+    transform:scale(.93);
+    background:rgba(70,130,80,.8);
+}
+
+#left{left:18px;bottom:105px}
+#right{left:95px;bottom:105px}
+#forward{right:95px;bottom:105px}
+#back{right:18px;bottom:105px}
+
+.action{
+    width:58px;
+    height:58px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+#work{right:18px;bottom:190px}
+#attach{right:88px;bottom:190px}
+#lights{right:158px;bottom:190px}
+
+#menu{
+    position:absolute;
+    top:75px;
+    right:15px;
+    padding:8px;
+    display:flex;
+    gap:6px;
+    pointer-events:auto;
+}
+
+.menuBtn{
+    border:0;
+    color:white;
+    background:rgba(255,255,255,.08);
+    border-radius:10px;
+    padding:9px 11px;
+    font-weight:bold;
+}
+
+#shop{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.62);
+    z-index:20;
+}
+
+.shopBox{
+    width:min(650px,92vw);
+    max-height:85vh;
+    overflow:auto;
+    padding:20px;
+    border-radius:22px;
+}
+
+.shopGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+    gap:10px;
+    margin-top:15px;
+}
+
+.card{
+    padding:14px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;
+}
+
+.card h3{
+    margin:0 0 8px;
+    font-size:15px;
+}
+
+.card p{
+    color:#aebdc5;
+    font-size:12px;
+}
+
+.card button,
+.close{
+    width:100%;
+    border:0;
+    padding:10px;
+    border-radius:10px;
+    color:white;
+    background:#31834a;
+    font-weight:bold;
+}
+
+.close{
+    margin-top:15px;
+    background:#33404a;
+}
+
+#loading{
+    position:fixed;
+    inset:0;
+    z-index:100;
+    background:#101820;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    transition:opacity .6s;
+}
+
+.logo{
+    width:90px;
+    height:90px;
+    border-radius:25px;
+    background:linear-gradient(145deg,#79c267,#2b6e3b);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:45px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+}
+
+.loadingTitle{
+    margin-top:20px;
+    font-size:25px;
+    font-weight:900;
+}
+
+.loadingBar{
+    margin-top:18px;
+    width:230px;
+    height:5px;
+    background:#27333b;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+.loadingFill{
+    width:0%;
+    height:100%;
+    background:#8bd17c;
+    animation:load 2.4s forwards;
+}
+
+@keyframes load{
+    to{width:100%}
+}
+
+@media(max-width:600px){
+    .stats{min-width:190px}
+    .statrow{gap:8px;font-size:11px}
+    #info{display:none}
+}
+</style>
+</head>
+
+<body>
+
+<div id="loading">
+    <div class="logo">🌾</div>
+    <div class="loadingTitle">GÖKÇE ÇİFTLİK 3D</div>
+    <div style="color:#8d9ba3;margin-top:7px">
+        Yeni nesil mobil tarım simülasyonu
+    </div>
+    <div class="loadingBar">
+        <div class="loadingFill"></div>
+    </div>
+</div>
+
+<div id="game"></div>
+
+<div id="hud">
+
+    <div class="topbar">
+        <div class="panel stats">
+            <div class="brand">🌾 Gökçe Çiftlik</div>
+            <div class="statrow">
+                <span>💰 <b class="money" id="money">125.000</b></span>
+                <span>⛽ <b id="fuel">100</b>%</span>
+                <span>🌤️ <b id="weather">Güneşli</b></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="message">Hazır</div>
+
+    <div class="panel speed">
+        <b id="speed">0</b>
+        <span>KM/H</span>
+        <div class="gear" id="gear">N</div>
+    </div>
+
+    <div id="info" class="panel">
+        <b>GÖREV</b><br>
+        Tarlayı sür, ek, büyüt ve hasat et.<br>
+        <br>
+        <b>GERÇEKÇİ TOPRAK</b><br>
+        İşlenen bölgeler koyulaşır.
+        Ekipman toprağa temas ettiğinde çalışma izi oluşur.
+    </div>
+
+    <div id="controls">
+
+        <div id="left" class="control">◀</div>
+        <div id="right" class="control">▶</div>
+        <div id="forward" class="control">▲</div>
+        <div id="back" class="control">▼</div>
+
+        <div id="work" class="control action">ÇALIŞ</div>
+        <div id="attach" class="control action">EKİPMAN</div>
+        <div id="lights" class="control action">IŞIK</div>
+
+    </div>
+
+    <div id="menu" class="panel">
+        <button class="menuBtn" id="shopBtn">MAĞAZA</button>
+        <button class="menuBtn" id="mapBtn">HARİTA</button>
+        <button class="menuBtn" id="camBtn">KAMERA</button>
+    </div>
+
+</div>
+
+<div id="shop">
+    <div class="shopBox panel">
+        <h2>🚜 Araç & Ekipman Merkezi</h2>
+        <p style="color:#aebdc5">
+            Çiftliğini büyüt, daha güçlü makineler satın al.
+        </p>
+
+        <div class="shopGrid">
+
+            <div class="card">
+                <h3>🚜 Gökçe 250</h3>
+                <p>250 HP • 50 KM/H</p>
+                <button data-buy="25000">SATIN AL • 25.000</button>
+            </div>
+
+            <div class="card">
+                <h3>🚜 Gökçe 500 X</h3>
+                <p>500 HP • ağır sınıf</p>
+                <button data-buy="75000">SATIN AL • 75.000</button>
+            </div>
+
+            <div class="card">
+                <h3>🌱 12 Sıralı Ekim Makinesi</h3>
+                <p>Hızlı ekim sistemi</p>
+                <button data-buy="35000">SATIN AL • 35.000</button>
+            </div>
+
+            <div class="card">
+                <h3>🪓 Orman Paketi</h3>
+                <p>Kesim ve taşıma ekipmanı</p>
+                <button data-buy="45000">SATIN AL • 45.000</button>
+            </div>
+
+            <div class="card">
+                <h3>🍇 Üzüm Paketi</h3>
+                <p>Bağ ekipmanları</p>
+                <button data-buy="30000">SATIN AL • 30.000</button>
+            </div>
+
+            <div class="card">
+                <h3>🌾 Biçerdöver</h3>
+                <p>Profesyonel hasat sistemi</p>
+                <button data-buy="110000">SATIN AL • 110.000</button>
+            </div>
+
+        </div>
+
+        <button class="close" id="closeShop">KAPAT</button>
+    </div>
+</div>
+
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+
+import * as THREE from "three";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+
+/* =========================================================
+   GÖKÇE ÇİFTLİK 3D
+   SINGLE HTML GAME ENGINE
+========================================================= */
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x87b9d4);
+scene.fog = new THREE.Fog(0x87b9d4,70,260);
+
+const camera = new THREE.PerspectiveCamera(
+    65,
+    innerWidth/innerHeight,
+    .1,
+    1000
+);
+
+camera.position.set(8,7,10);
+
+const renderer = new THREE.WebGLRenderer({
+    antialias:true,
+    powerPreference:"high-performance"
+});
+
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+document.getElementById("game").appendChild(renderer.domElement);
+
+/* LIGHT */
+
+const hemi = new THREE.HemisphereLight(
+    0xbde6ff,
+    0x4d583e,
+    2.2
+);
+
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(
+    0xfff2cf,
+    3.0
+);
+
+sun.position.set(80,120,50);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+
+sun.shadow.camera.left=-120;
+sun.shadow.camera.right=120;
+sun.shadow.camera.top=120;
+sun.shadow.camera.bottom=-120;
+
+scene.add(sun);
+
+/* WORLD */
+
+const WORLD=240;
+
+const groundMat=new THREE.MeshStandardMaterial({
+    color:0x5b8b43,
+    roughness:1
+});
+
+const ground=new THREE.Mesh(
+    new THREE.PlaneGeometry(WORLD,WORLD,1,1),
+    groundMat
+);
+
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
+
+/* TERRAIN PATCHES */
+
+function makeField(x,z,w,d,color=0x704f2d){
+
+    const mat=new THREE.MeshStandardMaterial({
+        color,
+        roughness:1
+    });
+
+    const field=new THREE.Mesh(
+        new THREE.PlaneGeometry(w,d),
+        mat
+    );
+
+    field.rotation.x=-Math.PI/2;
+    field.position.set(x,.015,z);
+    field.receiveShadow=true;
+
+    scene.add(field);
+
+    return {
+        mesh:field,
+        x,z,w,d,
+        cultivated:false,
+        crop:0,
+        growth:0
+    };
+}
+
+const fields=[];
+
+fields.push(makeField(-55,-45,55,42));
+fields.push(makeField(15,-55,65,48));
+fields.push(makeField(70,15,45,60));
+fields.push(makeField(-50,50,65,42));
+
+/* ROADS */
+
+function road(x,z,w,d){
+
+    const m=new THREE.MeshStandardMaterial({
+        color:0x3f4540,
+        roughness:1
+    });
+
+    const r=new THREE.Mesh(
+        new THREE.PlaneGeometry(w,d),
+        m
+    );
+
+    r.rotation.x=-Math.PI/2;
+    r.position.set(x,.02,z);
+
+    scene.add(r);
+}
+
+road(0,0,16,240);
+road(0,0,240,16);
+road(-35,-45,8,70);
+road(30,-55,8,70);
+
+/* TREES */
+
+function createTree(x,z,scale=1){
+
+    const group=new THREE.Group();
+
+    const trunk=new THREE.Mesh(
+        new THREE.CylinderGeometry(.35,.5,4,8),
+        new THREE.MeshStandardMaterial({color:0x704628})
+    );
+
+    trunk.position.y=2;
+    trunk.castShadow=true;
+
+    const crown=new THREE.Mesh(
+        new THREE.SphereGeometry(2.3,10,8),
+        new THREE.MeshStandardMaterial({color:0x315f35})
+    );
+
+    crown.position.y=5;
+    crown.castShadow=true;
+
+    group.add(trunk,crown);
+    group.position.set(x,0,z);
+    group.scale.setScalar(scale);
+
+    scene.add(group);
+
+    return group;
+}
+
+for(let i=0;i<80;i++){
+
+    const x=(Math.random()-.5)*220;
+    const z=(Math.random()-.5)*220;
+
+    if(Math.abs(x)<35 || Math.abs(z)<35) continue;
+
+    createTree(x,z,.7+Math.random()*.8);
+}
+
+/* VINEYARD */
+
+const vineyard=new THREE.Group();
+
+for(let row=0;row<8;row++){
+
+    for(let col=0;col<12;col++){
+
+        const vine=new THREE.Mesh(
+            new THREE.CylinderGeometry(.05,.07,1.2,5),
+            new THREE.MeshStandardMaterial({color:0x5c3c20})
+        );
+
+        vine.position.set(
+            88+col*2,
+            .6,
+            -55+row*2.4
+        );
+
+        vineyard.add(vine);
+
+        const leaf=new THREE.Mesh(
+            new THREE.SphereGeometry(.5,6,5),
+            new THREE.MeshStandardMaterial({color:0x397344})
+        );
+
+        leaf.position.copy(vine.position);
+        leaf.position.y+=.65;
+
+        vineyard.add(leaf);
+    }
+}
+
+scene.add(vineyard);
+
+/* FARM */
+
+function box(x,y,z,w,h,d,color){
+
+    const mesh=new THREE.Mesh(
+        new THREE.BoxGeometry(w,h,d),
+        new THREE.MeshStandardMaterial({
+            color,
+            roughness:.8
+        })
+    );
+
+    mesh.position.set(x,y,z);
+    mesh.castShadow=true;
+    mesh.receiveShadow=true;
+
+    scene.add(mesh);
+
+    return mesh;
+}
+
+box(0,3,25,18,6,12,0xb74b35);
+box(-3,6,25,12,3,12,0x8b3527);
+
+box(25,2,25,10,4,10,0xd1a65b);
+
+/* SILOS */
+
+for(let i=0;i<3;i++){
+
+    const silo=new THREE.Mesh(
+        new THREE.CylinderGeometry(3,3,12,20),
+        new THREE.MeshStandardMaterial({
+            color:0xbfc7c7,
+            metalness:.25,
+            roughness:.45
+        })
+    );
+
+    silo.position.set(
+        -17+i*7,
+        6,
+        25
+    );
+
+    silo.castShadow=true;
+    scene.add(silo);
+}
+
+/* TRACTOR */
+
+const tractor=new THREE.Group();
+
+const red=new THREE.MeshStandardMaterial({
+    color:0xc52d28,
+    roughness:.6
+});
+
+const dark=new THREE.MeshStandardMaterial({
+    color:0x15191c,
+    roughness:.7
+});
+
+const glass=new THREE.MeshStandardMaterial({
+    color:0x234e61,
+    transparent:true,
+    opacity:.72,
+    metalness:.15
+});
+
+/* chassis */
+
+const chassis=box(0,1.15,0,3.4,1.1,5,0xc52d28);
+tractor.add(chassis);
+
+/* hood */
+
+const hood=new THREE.Mesh(
+    new THREE.BoxGeometry(3,1.4,2.2),
+    red
+);
+
+hood.position.set(0,2.0,-1.25);
+hood.castShadow=true;
+tractor.add(hood);
+
+/* cabin */
+
+const cabin=new THREE.Mesh(
+    new THREE.BoxGeometry(2.7,2.8,2.3),
+    glass
+);
+
+cabin.position.set(0,3.2,1.0);
+cabin.castShadow=true;
+tractor.add(cabin);
+
+/* roof */
+
+const roof=new THREE.Mesh(
+    new THREE.BoxGeometry(3.2,.25,2.7),
+    dark
+);
+
+roof.position.set(0,4.65,1);
+tractor.add(roof);
+
+/* wheels */
+
+const wheels=[];
+
+function wheel(x,z,r){
+
+    const w=new THREE.Mesh(
+        new THREE.CylinderGeometry(r,r,.7,24),
+        dark
+    );
+
+    w.rotation.z=Math.PI/2;
+    w.position.set(x,r,z);
+    w.castShadow=true;
+
+    tractor.add(w);
+    wheels.push(w);
+}
+
+wheel(-1.65,-1.45,1.05);
+wheel(1.65,-1.45,1.05);
+wheel(-1.35,1.8,.72);
+wheel(1.35,1.8,.72);
+
+tractor.position.set(0,0,0);
+
+scene.add(tractor);
+
+/* IMPLEMENT */
+
+let implement=null;
+let working=false;
+
+function createPlow(){
+
+    const g=new THREE.Group();
+
+    for(let i=0;i<7;i++){
+
+        const blade=new THREE.Mesh(
+            new THREE.BoxGeometry(.18,.9,2.2),
+            new THREE.MeshStandardMaterial({
+                color:0x303438,
+                metalness:.75,
+                roughness:.35
+            })
+        );
+
+        blade.rotation.x=-.25;
+        blade.position.set(
+            -1.5+i*.5,
+            .55,
+            1.4
+        );
+
+        blade.castShadow=true;
+        g.add(blade);
+    }
+
+    const frame=new THREE.Mesh(
+        new THREE.BoxGeometry(3.6,.3,2),
+        dark
+    );
+
+    frame.position.z=1.4;
+    frame.position.y=.5;
+
+    g.add(frame);
+
+    g.position.set(0,.1,4);
+
+    tractor.add(g);
+
+    return g;
+}
+
+implement=createPlow();
+
+/* DUST */
+
+const dustParticles=[];
+
+function createDust(){
+
+    const geo=new THREE.SphereGeometry(.05,5,5);
+
+    const mat=new THREE.MeshBasicMaterial({
+        color:0xc5a477,
+        transparent:true,
+        opacity:.5
+    });
+
+    for(let i=0;i<120;i++){
+
+        const p=new THREE.Mesh(geo,mat);
+
+        p.visible=false;
+        scene.add(p);
+
+        dustParticles.push(p);
+    }
+}
+
+createDust();
+
+/* SOIL WORK */
+
+const soilMarks=[];
+
+function createSoilMark(){
+
+    const mark=new THREE.Mesh(
+        new THREE.PlaneGeometry(1.7,3.2),
+        new THREE.MeshBasicMaterial({
+            color:0x3c2819,
+            transparent:true,
+            opacity:.65
+        })
+    );
+
+    mark.rotation.x=-Math.PI/2;
+
+    mark.position.copy(tractor.position);
+    mark.position.y=.03;
+
+    mark.position.z+=3;
+
+    scene.add(mark);
+    soilMarks.push(mark);
+
+    if(soilMarks.length>300){
+
+        scene.remove(soilMarks.shift());
+    }
+}
+
+/* VEHICLE PHYSICS */
+
+let velocity=0;
+let steering=0;
+
+const keys={
+    forward:false,
+    back:false,
+    left:false,
+    right:false
+};
+
+function bind(id,key){
+
+    const el=document.getElementById(id);
+
+    const down=e=>{
+        e.preventDefault();
+        keys[key]=true;
+    };
+
+    const up=e=>{
+        e.preventDefault();
+        keys[key]=false;
+    };
+
+    el.addEventListener("pointerdown",down);
+    el.addEventListener("pointerup",up);
+    el.addEventListener("pointercancel",up);
+    el.addEventListener("pointerleave",up);
+}
+
+bind("forward","forward");
+bind("back","back");
+bind("left","left");
+bind("right","right");
+
+/* KEYBOARD */
+
+addEventListener("keydown",e=>{
+
+    if(e.key==="w"||e.key==="ArrowUp")keys.forward=true;
+    if(e.key==="s"||e.key==="ArrowDown")keys.back=true;
+    if(e.key==="a"||e.key==="ArrowLeft")keys.left=true;
+    if(e.key==="d"||e.key==="ArrowRight")keys.right=true;
+
+    if(e.code==="Space") toggleWork();
+});
+
+addEventListener("keyup",e=>{
+
+    if(e.key==="w"||e.key==="ArrowUp")keys.forward=false;
+    if(e.key==="s"||e.key==="ArrowDown")keys.back=false;
+    if(e.key==="a"||e.key==="ArrowLeft")keys.left=false;
+    if(e.key==="d"||e.key==="ArrowRight")keys.right=false;
+});
+
+/* WORK */
+
+function toggleWork(){
+
+    working=!working;
+
+    document.getElementById("work").innerText=
+        working ? "DUR" : "ÇALIŞ";
+
+    showMessage(
+        working ?
+        "Ekipman toprağa indirildi" :
+        "Ekipman kaldırıldı"
+    );
+}
+
+document.getElementById("work")
+    .addEventListener("pointerdown",toggleWork);
+
+/* ATTACH */
+
+document.getElementById("attach")
+.addEventListener("pointerdown",()=>{
+
+    if(implement){
+
+        implement.visible=!implement.visible;
+
+        showMessage(
+            implement.visible ?
+            "Ekipman takıldı" :
+            "Ekipman kaldırıldı"
+        );
+    }
+});
+
+/* LIGHTS */
+
+let lights=false;
+
+document.getElementById("lights")
+.addEventListener("pointerdown",()=>{
+
+    lights=!lights;
+
+    showMessage(
+        lights ? "Farlar açıldı" : "Farlar kapatıldı"
+    );
+});
+
+/* CAMERA */
+
+let cameraMode=0;
+
+document.getElementById("camBtn")
+.addEventListener("click",()=>{
+
+    cameraMode++;
+
+    if(cameraMode>2)cameraMode=0;
+
+    showMessage(
+        cameraMode===0 ?
+        "Takip kamerası" :
+        cameraMode===1 ?
+        "Yakın kamera" :
+        "Uzak kamera"
+    );
+});
+
+/* SHOP */
+
+const shop=document.getElementById("shop");
+
+document.getElementById("shopBtn")
+.addEventListener("click",()=>{
+    shop.style.display="flex";
+});
+
+document.getElementById("closeShop")
+.addEventListener("click",()=>{
+    shop.style.display="none";
+});
+
+let money=125000;
+
+document.querySelectorAll("[data-buy]").forEach(btn=>{
+
+    btn.addEventListener("click",()=>{
+
+        const price=Number(btn.dataset.buy);
+
+        if(money>=price){
+
+            money-=price;
+
+            document.getElementById("money")
+                .innerText=money.toLocaleString("tr-TR");
+
+            showMessage("Satın alma başarılı ✓");
+
+        }else{
+
+            showMessage("Yeterli paran yok!");
+        }
+    });
+});
+
+/* WEATHER */
+
+let weatherIndex=0;
+
+const weatherTypes=[
+    "Güneşli",
+    "Bulutlu",
+    "Yağmurlu",
+    "Fırtınalı"
+];
+
+let rain=false;
+
+function changeWeather(){
+
+    weatherIndex++;
+
+    if(weatherIndex>=weatherTypes.length)
+        weatherIndex=0;
+
+    const type=weatherTypes[weatherIndex];
+
+    document.getElementById("weather")
+        .innerText=type;
+
+    rain=type==="Yağmurlu"||type==="Fırtınalı";
+
+    if(rain){
+
+        scene.background.set(0x596873);
+        scene.fog.color.set(0x596873);
+        sun.intensity=.8;
+
+    }else{
+
+        scene.background.set(0x87b9d4);
+        scene.fog.color.set(0x87b9d4);
+        sun.intensity=3;
+    }
+}
+
+/* DAY/NIGHT */
+
+let dayTime=12;
+
+function updateTime(dt){
+
+    dayTime+=dt*.015;
+
+    if(dayTime>24)dayTime=0;
+
+    const angle=(dayTime/24)*Math.PI*2;
+
+    sun.position.set(
+        Math.cos(angle)*120,
+        Math.sin(angle)*120,
+        50
+    );
+
+    const daylight=Math.max(
+        .15,
+        Math.sin(angle)
+    );
+
+    sun.intensity=daylight*3;
+
+    hemi.intensity=.7+daylight*1.5;
+}
+
+/* MESSAGE */
+
+let messageTimer=null;
+
+function showMessage(text){
+
+    const m=document.getElementById("message");
+
+    m.innerText=text;
+    m.style.opacity=1;
+
+    clearTimeout(messageTimer);
+
+    messageTimer=setTimeout(()=>{
+        m.style.opacity=0;
+    },1800);
+}
+
+/* DUST UPDATE */
+
+function updateDust(){
+
+    if(!working)return;
+
+    for(const p of dustParticles){
+
+        if(Math.random()<.03){
+
+            p.visible=true;
+
+            p.position.set(
+                tractor.position.x+(Math.random()-.5)*3,
+                .4+Math.random()*1,
+                tractor.position.z+2+Math.random()*3
+            );
+        }
+
+        if(p.visible){
+
+            p.position.y+=.015;
+            p.scale.multiplyScalar(1.005);
+
+            if(p.position.y>3){
+
+                p.visible=false;
+                p.scale.setScalar(1);
+            }
+        }
+    }
+}
+
+/* FARMING LOGIC */
+
+let lastMark=0;
+
+function farmingLogic(time){
+
+    if(!working || !implement.visible)return;
+
+    if(time-lastMark>150){
+
+        createSoilMark();
+        lastMark=time;
+
+        document.getElementById("fuel").innerText=
+            Math.max(
+                0,
+                Number(document.getElementById("fuel").innerText)-0.05
+            ).toFixed(0);
+    }
+}
+
+/* VEHICLE */
+
+function updateVehicle(dt){
+
+    const maxSpeed=keys.forward ? .30 :
+                   keys.back ? -.15 : 0;
+
+    if(maxSpeed!==0){
+
+        velocity += (maxSpeed-velocity)*.07;
+
+    }else{
+
+        velocity*=.92;
+    }
+
+    if(keys.left)
+        steering+=.035;
+
+    if(keys.right)
+        steering-=.035;
+
+    steering*=.92;
+
+    tractor.rotation.y+=steering*velocity*2;
+
+    tractor.translateZ(-velocity);
+
+    /* world limit */
+
+    tractor.position.x=
+        THREE.MathUtils.clamp(
+            tractor.position.x,
+            -108,
+            108
+        );
+
+    tractor.position.z=
+        THREE.MathUtils.clamp(
+            tractor.position.z,
+            -108,
+            108
+        );
+
+    /* wheels */
+
+    for(const w of wheels){
+
+        w.rotation.x-=velocity*2.5;
+    }
+
+    /* fuel */
+
+    if(Math.abs(velocity)>.01){
+
+        let f=Number(
+            document.getElementById("fuel").innerText
+        );
+
+        f-=dt*.0007;
+
+        document.getElementById("fuel")
+            .innerText=Math.max(0,f).toFixed(0);
+    }
+
+    const kmh=Math.abs(velocity)*150;
+
+    document.getElementById("speed")
+        .innerText=Math.round(kmh);
+
+    document.getElementById("gear") 
+        .innerText=
+        velocity>0.01 ? "D" :
+        velocity<-.01 ? "R" : "N";
+}
+
+/* CAMERA FOLLOW */
+
+const controls=new OrbitControls(
+    camera,
+    renderer.domElement
+);
+
+controls.enablePan=false;
+controls.enableDamping=true;
+controls.maxPolarAngle=Math.PI/2.1;
+
+function updateCamera(){
+
+    if(cameraMode===0){
+
+        const offset=new THREE.Vector3(
+            0,
+            6.5,
+            11
+        );
+
+        offset.applyQuaternion(tractor.quaternion);
+
+        const target=tractor.position.clone()
+            .add(offset);
+
+        camera.position.lerp(target,.08);
+
+        controls.target.lerp(
+            tractor.position,
+            .12
+        );
+    }
+
+    if(cameraMode===1){
+
+        const offset=new THREE.Vector3(
+            0,
+            3.2,
+            6
+        );
+
+        offset.applyQuaternion(tractor.quaternion);
+
+        camera.position.lerp(
+            tractor.position.clone().add(offset),
+            .1
+        );
+
+        controls.target.copy(
+            tractor.position
+        );
+    }
+
+    if(cameraMode===2){
+
+        const offset=new THREE.Vector3(
+            0,
+            12,
+            20
+        );
+
+        offset.applyQuaternion(tractor.quaternion);
+
+        camera.position.lerp(
+            tractor.position.clone().add(offset),
+            .05
+        );
+
+        controls.target.lerp(
+            tractor.position,
+            .05
+        );
+    }
+}
+
+/* MAP BUTTON */
+
+document.getElementById("mapBtn")
+.addEventListener("click",()=>{
+
+    showMessage(
+        "Harita: Çiftlik • Tarlalar • Orman • Bağ"
+    );
+});
+
+/* RESIZE */
+
+addEventListener("resize",()=>{
+
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+        innerWidth,
+        innerHeight
+    );
+});
+
+/* GRASS */
+
+const grassMat=new THREE.MeshStandardMaterial({
+    color:0x46753a
+});
+
+for(let i=0;i<450;i++){
+
+    const blade=new THREE.Mesh(
+        new THREE.BoxGeometry(.05,.25,.05),
+        grassMat
+    );
+
+    const x=(Math.random()-.5)*220;
+    const z=(Math.random()-.5)*220;
+
+    if(Math.abs(x)<8 || Math.abs(z)<8)
+        continue;
+
+    blade.position.set(
+        x,
+        .12,
+        z
+    );
+
+    blade.rotation.y=Math.random()*Math.PI;
+
+    scene.add(blade);
+}
+
+/* WATER POND */
+
+const water=new THREE.Mesh(
+    new THREE.CircleGeometry(14,48),
+    new THREE.MeshStandardMaterial({
+        color:0x367da0,
+        transparent:true,
+        opacity:.78,
+        metalness:.15,
+        roughness:.15
+    })
+);
+
+water.rotation.x=-Math.PI/2;
+water.position.set(70,.03,-70);
+
+scene.add(water);
+
+/* ANIMATED WATER */
+
+let waterTime=0;
+
+/* LOADING */
+
+setTimeout(()=>{
+
+    const loading=document.getElementById("loading");
+
+    loading.style.opacity=0;
+
+    setTimeout(()=>{
+        loading.remove();
+    },700);
+
+    showMessage("Çiftliğe hoş geldin!");
+
+},2500);
+
+/* MAIN LOOP */
+
+const clock=new THREE.Clock();
+
+function animate(){
+
+    requestAnimationFrame(animate);
+
+    const dt=clock.getDelta();
+    const time=performance.now();
+
+    updateVehicle(dt);
+    updateCamera();
+    updateTime(dt);
+    updateDust();
+    farmingLogic(time);
+
+    waterTime+=dt;
+
+    water.position.y=.03+
+        Math.sin(waterTime*1.5)*.01;
+
+    controls.update();
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+animate();
+
+</script>
+
+</body>
+</html>
